@@ -100,6 +100,7 @@ New vendor requests on the `downstream-keyer` vendor. Each also takes an optiona
   - Checked with temporary debug logging: every keyer change started in the same millisecond as the program transition.
   - Ran it with keyers applied manually, and with a Load On Scene keyer plus **Keyer Off at Scene Change**.
 - With **Duplicate Scene** on, checked that **All Keyers Off** clears a Load On Scene keyer from Program and that no keyer stays behind after transitions.
+- With **Virtual Camera** running, checked that the keyers appear and change on the virtual camera output the same way as on Program.
 - Code is clang-format clean against the OBS style with `ColumnLimit: 132`.
 
 **Not yet tested:**
