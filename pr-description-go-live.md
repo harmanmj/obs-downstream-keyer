@@ -62,6 +62,7 @@ The response has `success`, plus `error` when `view_name` is unknown or `dsk_nam
 - Installed the build into OBS and checked the side column layout and button labels in the dock with the default theme.
 - With **Include Audio** off, put a keyer scene with audio on air and recorded. The recording was silent.
 - In Studio Mode, used **Go to Preview** on a keyer with **Hide After** set. The keyer stayed on the preview scene with no timer running. After the scene was transitioned to Program, the keyer went live with it and turned off after the set duration.
+- Swapped keyers on a scene change. With two keyers loaded, one was live on Program with **Keyer Off at Scene Change** and the other had scenes checked with **Go Live at Scene Change**. On the next scene transition, the live keyer went off and the other went live with the transition.
 - Code is clang-format clean against the OBS style with `ColumnLimit: 132`.
 
 **Not yet tested:**
