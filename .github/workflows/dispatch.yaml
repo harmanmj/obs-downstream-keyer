@@ -10,6 +10,7 @@ on:
         options:
           - build-windows
           - build
+          - build-flatpak
 permissions:
   contents: write
 jobs:
@@ -19,3 +20,9 @@ jobs:
     with:
       windows_only: ${{ inputs.job == 'build-windows' }}
     secrets: inherit
+
+  flatpak:
+    if: inputs.job == 'build' || inputs.job == 'build-flatpak'
+    uses: ./.github/workflows/flatpak.yaml
+    permissions:
+      contents: read
