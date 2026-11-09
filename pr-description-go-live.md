@@ -61,6 +61,7 @@ The response has `success`, plus `error` when `view_name` is unknown or `dsk_nam
 **Tested on Windows 11 x64 with OBS 33.0**, building against the OBS 31.1.0 deps with MSVC 2022 (RelWithDebInfo, no warnings):
 - Installed the build into OBS and checked the side column layout and button labels in the dock with the default theme.
 - With **Include Audio** off, put a keyer scene with audio on air and recorded. The recording was silent.
+- In Studio Mode, used **Go to Preview** on a keyer with **Hide After** set. The keyer stayed on the preview scene with no timer running. After the scene was transitioned to Program, the keyer went live with it and turned off after the set duration.
 - Code is clang-format clean against the OBS style with `ColumnLimit: 132`.
 
 **Not yet tested:**
