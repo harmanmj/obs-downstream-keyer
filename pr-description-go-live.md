@@ -1,44 +1,62 @@
-Adds a "set up, then take" workflow to each downstream keyer. Keyer scenes get check boxes. Checked scenes go on air with a new **Go Live** button, can be checked in the Studio Mode preview with **Go to Preview**, or can go live or off together with the program scene transition. Several scenes can be live on one keyer at once.
+Makes the downstream keyers a "set up, then take" control that works with OBS Studio Mode, the way a hardware switcher's downstream keyers do. Selecting keyer scenes no longer puts them on air. Scenes are checked, then taken live with a button, cued on the Studio Mode preview, or taken live or off together with the program scene transition. Several scenes can be live on one keyer at once.
+
+**Preview a keyer on a scene in Studio Mode, then take both live together.** With **Go to Preview**, the keyer is shown on top of the Studio Mode preview scene, so the operator can see exactly how the lower third will look over that scene before it goes out. When the preview scene is transitioned to Program, the keyer goes live with it in the same transition. No second click is needed, and nothing is on air until the scene transition. This isn't possible today, because keyer output never appears in the Studio Mode preview.
 
 The goal is the same as Load On Scene: let a busy operator set up the next graphic without it going on air by accident, and then take it at the right moment, ideally together with the scene change.
 
 **This builds on #67 (Load On Scene).** The first seven commits are that PR's. Once #67 is merged, this PR only contains the Go Live commits.
 
 ## Usage
-Each keyer tab now has a column of controls to the right of its scene list:
-
-- **Keyer Action:** **Go Live**, **Go to Preview** (Studio Mode only), and **Keyer Off**, which replaces the pause (None) button.
-- **Keyer Behavior on Transition:** **Go Live at Scene Change** and **Keyer Off at Scene Change**, which replace the Tie check box. At most one is on, and with neither on the keyer is left unchanged.
+- **All Keyers row** (above the tabs, acts on every keyer):
+  - **All Keyers Off**
+  - **Keyer Off at Scene Change**: one-shot, clears every keyer except the Load On Scene keyers of the new scene on the next transition
+  - **Hold Keyers**: keyers stay as they are on transitions and Hide After stops
+  - **Transition Keyers** (Studio Mode): the program keyers become what the preview shows, without a scene transition
+- **Keyer Action column** (each tab, acts on that keyer only):
+  - **Go Live** (Studio Mode off)
+  - **Go to Preview** and **Go to Program** (Studio Mode on)
+  - **Keyer Off**
+- **Check boxes** on the right of each scene name choose what is taken.
 - **Include Audio** in the gear menu.
 
 ## Behaviour
-- **Selecting no longer goes on air.** The check box on the right of each scene name arms it. Clicking the name only highlights it for move and remove.
+- **Tally.**
+  - Keyer tabs are filled red while on program and green while shown on the Studio Mode preview. The selected tab is gray otherwise and has a white underline.
+  - In the list, live scenes are red bold and cued scenes green bold.
 - **Several scenes at once.** Checked scenes go live together, layered in list order with the top of the list on top. More than one scene is put on the output as a private scene holding them as layers, so the keyer's transition blends the group as one picture.
-- **Tally colours.** Live scenes are shown in red bold and previewed scenes in green bold. **Go Live** turns red when the checked scenes differ from what is live.
-- **Go Live** uses the keyer's transitions. If a preview is showing, the previewed scenes go live and the preview is cleared.
-- **Keyer Off** only clears the output. The check boxes and any preview are kept.
-- **Go to Preview.** A plugin can't draw over the Studio Mode preview, so the checked scenes are added to the preview scene as a temporary, locked scene item at the top, tagged in its private settings.
-  - The preview follows the check boxes and the selected preview scene.
-  - On a program transition to that scene, the keyer scenes ride in with it. When the transition ends, the same source is cut onto the keyer output and the item is removed, so nothing visibly changes. This handles **Duplicate Scene** (the item is copied into the private program copy and removed there too) and **Swap Scenes**.
-  - The item is never added to the scene that is currently on Program.
-  - Leftover items are purged on `FINISHED_LOADING` and `SCENE_COLLECTION_CHANGED`, for example after a crash.
-- **Keyer Behavior on Transition.** On the main output this acts when the program transition **starts**, via the global `source_transition_start` signal filtered to output channel 0, so the keyer and scene transitions run together. The later `SCENE_CHANGED` for that scene is skipped. Views and canvases still act on their scene change, as before.
-- **Include Audio, off by default.** Without it, the keyer output is wrapped in a small private video-only source (`downstream_keyer_video_only`, hidden from the source list), so the keyer scenes' audio isn't mixed into the output. With it on, the audio is mixed as before. Sources still show in the Audio Mixer, because their meters show their own level.
-- **Hide After** starts when scenes actually go live, never during a preview.
-- **Exclude Scene and Load On Scene still take priority**, including over a preview take.
+- **The Studio Mode preview shows the next look of every keyer:** cued keyers, Load On Scene keyers of the previewed scene, held keyers, and keyers that stay. A plugin can't draw over the Studio Mode preview, so each keyer's next look is a temporary, locked scene item at the top of the preview scene, using a private source and tagged in its private settings.
+  - On a program transition, cued keyers ride in with the scene and are cut onto their keyer output, with the same picture, when the transition ends. The other copies are removed when the transition starts.
+  - **Duplicate Scene** is handled: copies are also removed from the private program copy OBS makes, and any copy left in the program scene is removed after each transition.
+  - Copies are never added to the scene that is on program, and leftovers in a saved scene collection are purged on load.
+- **Scene transitions.** On the main output, keyers change when the program transition starts, so keyer and scene transitions run together. OBS's scene transitions are private sources, so the plugin connects to each transition's own `transition_start` signal and reconnects when the transition list changes. Per keyer, in order:
+  1. Hold Keyers keeps it as is.
+  2. Exclude Scene hides it.
+  3. A cue for the scene goes live.
+  4. Keyer Off at Scene Change, or another keyer's cue being taken, clears it unless it is a Load On Scene keyer of the new scene.
+  5. Load On Scene hides it on unlisted scenes and loads it on listed ones.
+  6. Otherwise it stays.
+- **Keyer transitions.** A keyer without its own Transition follows the OBS scene transition and its duration, as a private copy kept in step with the Scene Transitions dock. The gear menu shows this as **Same as Scene Transition**.
+- **Include Audio, off by default.** Without it, the keyer output is wrapped in a small private video-only source (`downstream_keyer_video_only`, hidden from the source list), so the keyer scenes' audio isn't mixed into the output.
+- **Hide After** starts when scenes go live, never during a cue, and is stopped by Hold Keyers.
 
 ## Compatibility
-- **Old settings load:** the scene that was on air stays live, nothing is checked, and `tie` becomes **Go Live at Scene Change**.
-- **New keys:** `checked` on each scene, `live_scenes`, `scene_change_mode` and `include_audio`. `scene` and `tie` are still written.
-- **Behaviour change:** Include Audio defaults to off, so keyers that played audio before are silent until it is checked.
-- **Existing websocket requests keep working:**
+- **Old settings:** the scene that was on air stays live and nothing is checked. **Tie** is ignored.
+- **New keys:**
+  - per keyer: `checked` on each scene, `live_scenes`, `include_audio`
+  - per dock: `downstream_keyers_hold`, `downstream_keyers_off_at_scene_change`
+  - `scene` is still written.
+- **Behaviour changes:**
+  - Include Audio defaults to off, so keyers that played audio are silent until it is checked.
+  - Keyers without a Transition now fade with the scene transition instead of cutting.
+  - Selecting a keyer scene no longer puts it on air.
+- **Removed:** the Tie check box, its hotkeys, and `dsk_set_tie` (it now returns `success: false`).
+- **Existing websocket requests:**
   - `dsk_select_scene` checks only that scene and puts it live.
   - `dsk_get_scene` returns the first live scene.
-  - `dsk_set_tie` sets **Go Live at Scene Change**.
   - `dsk_scene_changed` reports the live scenes, separated by commas.
 - **Existing hotkeys:**
   - The per-scene **Show on** / **Hide on** hotkeys add the scene to, or remove it from, the live scenes right away.
-  - The tie hotkeys toggle **Go Live at Scene Change**.
+  - The keyer **Hide on** hotkey is that keyer's Keyer Off.
 
 ## obs-websocket
 Two new vendor requests on the `downstream-keyer` vendor:
@@ -51,14 +69,33 @@ Two new vendor requests on the `downstream-keyer` vendor:
 The response has `success`, plus `error` when `view_name` is unknown or `dsk_name` is missing.
 
 ## Changes
-- `downstream-keyer.cpp/.hpp`: the side column, the right-hand check box delegate, live and preview state, building the layered source, Go Live, Go to Preview with take and cleanup, scene change modes, the video-only wrapper source, save/load, and the new hotkeys
-- `downstream-keyer-dock.cpp/.hpp`: the transition start hook, preview and studio mode events, the **Include Audio** menu item, registering the video-only source, the leftover preview purge, and the two websocket requests
+- `downstream-keyer.cpp/.hpp`:
+  - the Keyer Action column and the right-hand check box delegate
+  - live and cue state, and building the layered source
+  - the preview next look and cue take
+  - the scene change rules
+  - the default scene transition
+  - the video-only wrapper source
+  - save/load and the new hotkeys
+- `downstream-keyer-dock.cpp/.hpp`:
+  - the All Keyers row and its saved settings
+  - the tab tally
+  - the transition start hooks
+  - preview and Studio Mode events
+  - cleanup of keyer copies on program and on load
+  - the **Include Audio** menu item and registering the video-only source
+  - the two websocket requests
 - `data/locale/en-US.ini`: new strings
 
 ## Testing
 **Tested on Windows 11 x64 with OBS 33.0**, building against the OBS 31.1.0 deps with MSVC 2022 (RelWithDebInfo, no warnings):
-- Installed the build into OBS and checked the side column layout and button labels in the dock with the default theme.
+- Installed the build into OBS and checked the dock layout, button labels and tab tally with the default theme.
 - With **Include Audio** off, put a keyer scene with audio on air and recorded. The recording was silent.
+- In Studio Mode, used **Go to Preview** on a keyer with **Hide After** set. The keyer stayed on the preview scene with no timer running. After the scene was transitioned to Program, the keyer went live with it and turned off after the set duration.
+- Swapped keyers on a scene change. One keyer was live on Program and another was cued with **Go to Preview**. On the scene transition, the live keyer faded out with the scene and the cued keyer went live with it.
+  - Checked with temporary debug logging: every keyer change started in the same millisecond as the program transition.
+  - Ran it with keyers applied manually, and with a Load On Scene keyer plus **Keyer Off at Scene Change**.
+- With **Duplicate Scene** on, checked that **All Keyers Off** clears a Load On Scene keyer from Program and that no keyer stays behind after transitions.
 - Code is clang-format clean against the OBS style with `ColumnLimit: 132`.
 
 **Not yet tested:**
@@ -66,8 +103,8 @@ The response has `success`, plus `error` when `view_name` is unknown or `dsk_nam
 - **Not systematically tested on Windows yet:**
   - the obs-websocket requests and hotkeys
   - keyers on extra views/canvases
-  - Go to Preview with every combination of Duplicate Scene and Swap Scenes
-  - transitions with a fixed duration (stingers)
+  - **Swap Scenes**
+  - stinger transitions (keyers change when the transition starts, not at the stinger's transition point)
 
 ## Sign-off
 

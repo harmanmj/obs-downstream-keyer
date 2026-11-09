@@ -1,94 +1,103 @@
-# Go Live, Go to Preview and Keyer Behavior on Transition
+# Go Live, Go to Preview and All Keyers controls
 
-These changes turn each downstream keyer into a "set up, then take" control. Selecting keyer scenes no longer puts them on air. You check the scenes you want, then put them live with **Go Live**, preview them in Studio Mode with **Go to Preview**, or let a program scene transition take them live or off.
+These changes turn the downstream keyers into a "set up, then take" control that works with OBS Studio Mode. Selecting keyer scenes no longer puts them on air. You check the scenes you want, then take them live with a button, cue them on the Studio Mode preview, or let a program scene transition take them, the way a hardware switcher's downstream keyers work.
 
 ## The dock
 
-Each keyer tab has its scene list on the left and a column of controls on the right:
-
 ```
-[DSK 1][DSK 2]                                       [⚙]
+All Keyers
+[ All Keyers Off ] [ Keyer Off at Scene Change ] [ Hold Keyers ] [ Transition Keyers ]
+[ Lyrics ][ Speakers ][ Bumpers ]                                              [⚙]
 ┌──────────────────────────────┐ ┌──────────────────────────────┐
 │ Lower Third - Pastor     [✓] │ │         Keyer Action         │
-│ Lower Third - Worship    [✓] │ │ [          Go Live         ] │
-│ Scripture Overlay        [ ] │ │ [       Go to Preview      ] │
-│                              │ │ [         Keyer Off        ] │
-│                              │ │ Keyer Behavior on Transition │
-│                              │ │ [  Go Live at Scene Change ] │
-│                              │ │ [ Keyer Off at Scene Change] │
-│                              │ │  To leave the keyer unchanged│
-│                              │ │  on scene transition, do not │
-│                              │ │  select an option.           │
+│ Lower Third - Worship    [ ] │ │ [     Go to Preview      ]   │  Studio Mode
+│                              │ │ [     Go to Program      ]   │  Studio Mode
+│                              │ │ [       Keyer Off        ]   │
 └──────────────────────────────┘ └──────────────────────────────┘
 [+] [−]  [↑] [↓]
 ```
 
-- **Check boxes** (right of each scene name) choose which keyer scenes are armed. Clicking a scene name only highlights it for the move and remove buttons.
-- **Live scenes** are shown in red bold, **previewed scenes** in green bold.
-- **Go Live** turns red when the checked scenes differ from what is live.
-- **Go to Preview** only shows while Studio Mode is on, and stays green while a preview is showing.
+- **The All Keyers row** (above the tabs) acts on every keyer in the dock.
+- **The Keyer Action column** (in each tab) acts on that tab's keyer only.
+- **Check boxes** (right of each scene name) choose the keyer scenes to take. Clicking a scene name only highlights it for the move and remove buttons.
+- **Tab tally:** a tab is filled **red** while its keyer is on program and **green** while it shows on the Studio Mode preview. The selected tab is gray when it is neither, and always has a white underline.
+- **Scene tally:** in the list, live scenes are red bold and cued scenes green bold.
 
 ## Several scenes at once
 
 Any number of scenes can be checked. They go live together, layered in list order with the top of the list on top. Use the move up/down buttons or drag to change the order.
 
-One scene goes on the keyer output as itself. Several scenes go on the output as a private scene that holds them as layers, so a keyer transition blends the whole group at once. This costs about the same as showing those scenes anyway.
+One scene goes on the keyer output as itself. Several go on the output as a private scene that holds them as layers, so a keyer transition blends the whole group at once. This costs about the same as showing those scenes anyway.
 
-## Keyer Action
+## Keyer Action (each tab)
+
+| Button | Shown | What it does |
+|---|---|---|
+| **Go Live** | Studio Mode off | Puts the checked scenes on the keyer output now, with the keyer's transition. Red when the checked scenes differ from what is live. With nothing checked, the keyer goes off. |
+| **Go to Preview** | Studio Mode on | Cues the checked scenes on the preview scene. Click again to clear the cue. Green while scenes are checked. |
+| **Go to Program** | Studio Mode on | Puts this keyer's cue, or its checked scenes when nothing is cued, on program now, without a scene transition. Other keyers are not changed. Red while scenes are checked. |
+| **Keyer Off** | Always | Takes this keyer off program, with its transition. The check boxes and any cue stay. Other keyers are not changed. |
+
+Go to Preview and Go to Program are greyed out while nothing is checked.
+
+## All Keyers (above the tabs)
 
 | Button | What it does |
 |---|---|
-| **Go Live** | Puts the checked scenes on the keyer output now, with the keyer's transition. If a preview is showing, the previewed scenes go live instead and the preview is cleared. With nothing checked and nothing previewed, the keyer goes off. |
-| **Go to Preview** | Studio Mode only. Shows the checked scenes on top of the preview scene. Click it again to clear the preview. |
-| **Keyer Off** | Takes the keyer output off now. The check boxes and any preview stay as they are. It replaces the old pause (None) button. |
+| **All Keyers Off** | Takes every keyer off program now, even while Hold Keyers is on. Load On Scene keyers come back the next time a listed scene goes to program. |
+| **Keyer Off at Scene Change** | One-shot toggle. On the next program scene transition, every keyer goes off except the Load On Scene keyers of the new scene. It turns itself off when that transition ends. Greyed out while Hold Keyers is on. |
+| **Hold Keyers** | Toggle. Keyers stay as they are on scene transitions, ignoring Load On Scene and Exclude Scene, and Hide After does not count down. A cued keyer still goes live with its transition. Turning it off matches the keyers to the program scene right away: the Load On Scene keyers of that scene load, the others go off. |
+| **Transition Keyers** | Studio Mode only. Makes the program keyers match what the preview shows, without a scene transition: cued keyers go live, keyers shown on the preview go live with those scenes, and the rest go off. |
 
-### How Go to Preview works
+## Program scene transitions
 
-OBS has no way for a plugin to draw over the Studio Mode preview, so the checked scenes are added to the preview scene as a temporary, locked source at the top of its source list. While you preview, it shows in that scene's **Sources** list.
+On the main output, keyers change when the program transition **starts**, so they move together with the scene. Each keyer follows these rules, in order:
 
-- **The preview follows the check boxes.** Checking or unchecking scenes updates the preview. Unchecking them all clears it.
-- **It follows the preview scene.** If you pick another preview scene, it moves there.
-- **Transitioning takes it live.** When the preview scene is transitioned to Program, the keyer scenes go along inside the scene. When the transition ends, the same picture moves to the keyer output and the temporary source is removed. This works with **Duplicate Scene** and **Swap Scenes** on or off.
-- **It is never added to the scene that is on Program**, because that would put it on air. If the preview scene is the program scene, nothing shows until you pick another preview scene.
-- **Leftovers are cleaned up.** If OBS closes or crashes while a preview is showing, the temporary source is removed the next time the scene collection loads.
-- **Studio Mode off clears the preview**, and the button is hidden.
+1. **Hold Keyers on:** no change. A cued keyer still goes live.
+2. **Exclude Scene:** the keyer output is off on that scene. What was live comes back on the next scene the keyer is shown on.
+3. **Cued with Go to Preview, and its preview scene is the one going to program:** the cue goes live with the scene.
+4. **Keyer Off at Scene Change is on, or another keyer's cue is being taken:** the keyer goes off, unless it is a Load On Scene keyer of the new scene.
+5. **Load On Scene, and the new scene is not listed:** the keyer output is off for now. What was live comes back on a listed scene.
+6. **Load On Scene, the new scene is listed, and nothing is live:** the keyer loads its last live scenes, or the first scene in its list.
+7. **Otherwise:** the keyer stays as it is.
 
-## Keyer Behavior on Transition
+Keyers on extra views or canvases follow the same rules when their scene change is reported.
 
-These replace the **Tie** check box. At most one can be on. Click a lit button again to turn it off.
+## The Studio Mode preview
 
-| Setting | When the program scene transitions |
-|---|---|
-| **Go Live at Scene Change** | The checked scenes go live with the transition. If nothing is checked, or the checked scenes are already live, nothing changes. |
-| **Keyer Off at Scene Change** | The keyer goes off with the transition. The check boxes stay, so Go Live brings the scenes back. |
-| Neither selected | The keyer is left unchanged. |
+The preview scene shows what every keyer will show after a transition to it, by the rules above. That includes cued keyers, Load On Scene keyers listed for that scene, held keyers, and keyers that stay. A cue removes from the preview the keyers it will take off.
 
-On the main output, the keyer changes when the program transition **starts**, so the keyer and the scene transition run at the same time. Keyers on extra views or canvases change when their scene change is reported, as before.
+OBS has no way for a plugin to draw over the Studio Mode preview, so each keyer's next look is added to the preview scene as a temporary, locked source at the top of its source list, stacked in keyer tab order.
 
-The setting is saved per keyer. A keyer that had **Tie** on starts with **Go Live at Scene Change** on.
+- **It updates** as you check scenes, cue keyers, take keyers live or off, change the All Keyers buttons, or pick another preview scene.
+- **On a transition,** cued keyers ride in with the scene and move to their keyer output, with the same picture, when the transition ends. The other copies are removed when the transition starts, because those keyers are shown by their own output.
+- **Duplicate Scene and Swap Scenes** are supported. With Duplicate Scene, OBS puts a private copy of the preview scene on program, and keyer copies are removed from that copy too.
+- **Never added to the scene that is on program,** because that would put it on air.
+- **Leftovers are cleaned up.** Any keyer copy left in the program scene is removed after each transition, and copies left in a saved scene collection are removed when it loads. The copies use private sources, so a saved collection never keeps a real lower third item.
+
+## Keyer transitions
+
+A keyer without a Transition of its own follows the OBS scene transition selected in the Scene Transitions dock, with its duration. Changing that dock changes these keyers on their next change. In the gear menu this shows as **Same as Scene Transition**, and Show / Hide Transition show **Same as Transition**.
+
+A keyer uses, in order: Show / Hide Transition when it turns on or off, a Transition Table override between the two keyer scenes, its own Transition, then the OBS scene transition.
 
 ## Include Audio
 
 Keyer audio is left out of the output mix by default. Check **Include Audio** in the gear menu to put a keyer's audio back.
 
-- **Off (default).** The keyer output is wrapped in a private video-only source, so the scenes show but their sound is not mixed into the stream or recording. The sources still appear in the Audio Mixer with moving meters, because the mixer shows each source's own level, not what reaches the output. To hide them there, right-click the strip and choose **Hide**.
-- **On.** The keyer's audio is mixed into the output, as it was before.
-- **Shared sources.** If an audio source is in both a keyer scene and the program scene, leave Include Audio off. With it on, OBS mixes that source twice and it plays about twice as loud.
-- Switching the option while scenes are live swaps the source without a transition, so the picture does not change.
+- **Off (default).** The keyer output is wrapped in a private video-only source, so the scenes show but their sound is not mixed into the stream or recording. The sources still appear in the Audio Mixer with moving meters, because the mixer shows each source's own level. Right-click a strip and choose **Hide** to hide it there.
+- **On.** The keyer's audio is mixed into the output.
+- **Shared sources.** If an audio source is in both a keyer scene and the program scene, leave Include Audio off. With it on, OBS mixes it twice and it plays about twice as loud.
 
-## How it fits with the other options
+## Hide After
 
-- **Exclude Scene and Load On Scene still win.** On an excluded or unlisted program scene, the keyer output is off, and nothing is taken live from a preview. What was live comes back on the next scene the keyer is shown on.
-- **Load On Scene auto-load** shows the scenes that were last live, or the first scene in the list, when a listed scene goes live and nothing is live.
-- **Hide After** starts when scenes go live (Go Live, a transition, or a preview take). It does not run during a preview. When it runs out, the keyer goes off and the check boxes stay.
-- **Go to Preview wins over the scene change setting.** If the previewed scene is taken to Program, the previewed keyer scenes go live, even with **Keyer Off at Scene Change** on.
+Hide After counts down from the moment scenes go live (a button, a scene transition, or a cue being taken). It does not run while scenes are only cued, and Hold Keyers stops it. When it runs out the keyer goes off and its check boxes stay.
 
 ## Hotkeys
 
-- **Go Live** and **Go to Preview** hotkeys are added for each keyer.
-- The existing per-scene **Show on** / **Hide on** hotkeys check or uncheck that scene and add it to, or remove it from, what is live right away.
-- The **Hide on** keyer hotkey works like **Keyer Off**.
-- The **Enable Tie** / **Disable Tie** hotkeys turn **Go Live at Scene Change** on and off.
+- **Go Live** and **Go to Preview** hotkeys for each keyer. Go Live works in Studio Mode too.
+- The per-scene **Show on** / **Hide on** hotkeys check or uncheck that scene and add it to, or remove it from, what is live right away.
+- The **Hide on** keyer hotkey works like that keyer's **Keyer Off**.
 
 ## obs-websocket
 
@@ -96,8 +105,8 @@ Two vendor requests are added to the `downstream-keyer` vendor:
 
 | Request | Description |
 |---|---|
-| `dsk_go_live` | Same as the **Go Live** button |
-| `dsk_go_to_preview` | Same as **Go to Preview**, but it only starts a preview and never clears one |
+| `dsk_go_live` | Same as **Go Live** / **Go to Program** |
+| `dsk_go_to_preview` | Same as **Go to Preview**, but it only starts a cue and never clears one |
 
 | Field | Required | Description |
 |---|---|---|
@@ -107,11 +116,11 @@ Two vendor requests are added to the `downstream-keyer` vendor:
 
 The response has `success`, plus `error` when `view_name` is unknown or `dsk_name` is missing.
 
-Existing requests keep working:
+Existing requests:
 
 - `dsk_select_scene` checks only that scene and puts it live right away. An empty `scene` turns the keyer off.
 - `dsk_get_scene` returns the first live scene.
-- `dsk_set_tie` turns **Go Live at Scene Change** on or off.
+- `dsk_set_tie` returns `success: false` with "tie is no longer supported".
 - The `dsk_scene_changed` event's `new_scene` lists the live scenes, separated by commas.
 
 ## Saved settings
@@ -125,16 +134,18 @@ Each keyer saves:
 ],
 "live_scenes": [ { "name": "Lower Third - Pastor" } ],
 "scene": "Lower Third - Pastor",
-"scene_change_mode": 1,
-"tie": true,
 "include_audio": false
 ```
 
-- `scene_change_mode`: `0` neither, `1` Go Live at Scene Change, `2` Keyer Off at Scene Change.
-- `scene` and `tie` are still written for older versions and websocket clients.
-- **Settings from earlier versions load as follows:** the scene that was on air stays live, nothing is checked, and `tie` becomes Go Live at Scene Change. Include Audio starts off, so existing keyers stop sending audio until it is checked.
+`scene` is still written for older versions and websocket clients.
+
+Each dock saves `downstream_keyers_hold` and `downstream_keyers_off_at_scene_change` (prefixed with the view name for extra views and canvases).
+
+**Settings from earlier versions load as follows:** the scene that was on air stays live and nothing is checked. Tie is ignored. Include Audio starts off, so existing keyers stop sending audio until it is checked. Keyers without a Transition now use the OBS scene transition instead of cutting; set Transition to **Cut** to keep cutting.
 
 ## Known limitations
 
 - **Layered scenes on extra canvases** are sized to the main canvas. On a canvas with a different resolution, the layers may be positioned wrong.
-- **Go to Preview** is only available for the main output, because Studio Mode only exists there.
+- **Go to Preview, Go to Program and Transition Keyers** are only available for the main output, because Studio Mode only exists there.
+- **Stinger transitions:** keyers change when the transition starts, not at the stinger's transition point. Untested.
+- **The All Keyers row does not wrap,** so the dock cannot be narrower than its buttons.
