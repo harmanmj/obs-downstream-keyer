@@ -103,8 +103,10 @@ New vendor requests on the `downstream-keyer` vendor. Each also takes an optiona
 - With **Virtual Camera** running, checked that the keyers appear and change on the virtual camera output the same way as on Program.
 - Code is clang-format clean against the OBS style with `ColumnLimit: 132`.
 
+**macOS and Linux builds:** the same code (plus a version bump) builds with this repository's workflows on macOS (universal), Ubuntu 24.04 and Ubuntu 26.04, in a tagged release run on my fork. It also builds as the Flatpak extension (`org.kde.Sdk` 6.6), which installs and loads (`[Downstream Keyer] loaded version …`) in Flathub's OBS 33.0.1 on Ubuntu 24.04.
+
 **Not yet tested:**
-- **macOS and Linux.** I haven't built or run it on these; I'm relying on this PR's CI builds.
+- **Running on macOS and on Linux** beyond the plugin loading in Flatpak OBS. The dock and keyers have only been used on Windows.
 - **Not systematically tested on Windows yet:**
   - the obs-websocket requests (built and compiled, not yet called from a client) and hotkeys
   - keyers on extra views/canvases
