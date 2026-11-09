@@ -230,6 +230,9 @@ static void frontend_event(enum obs_frontend_event event, void *data)
 	} else if (event == OBS_FRONTEND_EVENT_CANVAS_REMOVED) {
 	} else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP) {
 		load_data = nullptr;
+	} else if (event == OBS_FRONTEND_EVENT_FINISHED_LOADING || event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED) {
+		// Go to Preview scene items left in a saved scene collection (OBS closed or crashed while previewing)
+		dsk_purge_preview_items();
 	}
 }
 
@@ -246,6 +249,7 @@ bool obs_module_load()
 {
 	blog(LOG_INFO, "[Downstream Keyer] loaded version %s", PROJECT_VERSION);
 	obs_register_source(&output_source_info);
+	dsk_register_video_only_source();
 
 	const auto main_window = static_cast<QMainWindow *>(obs_frontend_get_main_window());
 	obs_frontend_push_ui_translation(obs_module_get_string);
@@ -286,6 +290,10 @@ void obs_module_post_load(void)
 	obs_websocket_vendor_register_request(vendor, "dsk_add_exclude_scene", DownstreamKeyerDock::add_exclude_scene, nullptr);
 	obs_websocket_vendor_register_request(vendor, "dsk_remove_exclude_scene", DownstreamKeyerDock::remove_exclude_scene,
 					      nullptr);
+	obs_websocket_vendor_register_request(vendor, "dsk_add_load_scene", DownstreamKeyerDock::add_load_scene, nullptr);
+	obs_websocket_vendor_register_request(vendor, "dsk_remove_load_scene", DownstreamKeyerDock::remove_load_scene, nullptr);
+	obs_websocket_vendor_register_request(vendor, "dsk_go_live", DownstreamKeyerDock::go_live, nullptr);
+	obs_websocket_vendor_register_request(vendor, "dsk_go_to_preview", DownstreamKeyerDock::go_to_preview, nullptr);
 }
 
 void obs_module_unload()
@@ -308,6 +316,10 @@ void obs_module_unload()
 	obs_websocket_vendor_unregister_request(vendor, "dsk_set_transition");
 	obs_websocket_vendor_unregister_request(vendor, "dsk_add_exclude_scene");
 	obs_websocket_vendor_unregister_request(vendor, "dsk_remove_exclude_scene");
+	obs_websocket_vendor_unregister_request(vendor, "dsk_add_load_scene");
+	obs_websocket_vendor_unregister_request(vendor, "dsk_remove_load_scene");
+	obs_websocket_vendor_unregister_request(vendor, "dsk_go_live");
+	obs_websocket_vendor_unregister_request(vendor, "dsk_go_to_preview");
 }
 
 MODULE_EXPORT const char *obs_module_description(void)
@@ -342,7 +354,14 @@ void DownstreamKeyerDock::frontend_event(enum obs_frontend_event event, void *da
 	} else if (event == OBS_FRONTEND_EVENT_EXIT) {
 		downstreamKeyerDock->ClearKeyers();
 	} else if (event == OBS_FRONTEND_EVENT_SCENE_CHANGED) {
+		downstreamKeyerDock->ForEachKeyer([](DownstreamKeyer *w) { w->CheckPreviewTake(); });
 		QMetaObject::invokeMethod(downstreamKeyerDock, "SceneChanged", Qt::QueuedConnection);
+	} else if (event == OBS_FRONTEND_EVENT_TRANSITION_STOPPED) {
+		downstreamKeyerDock->ForEachKeyer([](DownstreamKeyer *w) { w->CheckPreviewTake(); });
+	} else if (event == OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED) {
+		downstreamKeyerDock->ForEachKeyer([](DownstreamKeyer *w) { w->PreviewSceneChanged(); });
+	} else if (event == OBS_FRONTEND_EVENT_STUDIO_MODE_ENABLED || event == OBS_FRONTEND_EVENT_STUDIO_MODE_DISABLED) {
+		downstreamKeyerDock->ForEachKeyer([](DownstreamKeyer *w) { w->StudioModeChanged(); });
 	} else if (event == OBS_FRONTEND_EVENT_SCRIPTING_SHUTDOWN) {
 		downstreamKeyerDock->closing = true;
 		downstreamKeyerDock->ClearKeyers();
@@ -395,6 +414,34 @@ DownstreamKeyerDock::DownstreamKeyerDock(QWidget *parent, int oc, obs_view_t *v,
 
 	obs_frontend_add_save_callback(frontend_save_load, this);
 	obs_frontend_add_event_callback(frontend_event, this);
+	if (!view && !canvas)
+		signal_handler_connect(obs_get_signal_handler(), "source_transition_start", transition_start, this);
+}
+
+// The main program transition started: the keyers change with it instead of after it.
+void DownstreamKeyerDock::transition_start(void *data, calldata_t *cd)
+{
+	auto dock = static_cast<DownstreamKeyerDock *>(data);
+	auto tr = static_cast<obs_source_t *>(calldata_ptr(cd, "source"));
+	obs_source_t *program = obs_get_output_source(0);
+	const bool isProgram = tr && tr == program;
+	obs_source_release(program);
+	if (!isProgram)
+		return;
+	obs_source_t *dest = obs_transition_get_source(tr, OBS_TRANSITION_SOURCE_B);
+	if (!dest) // fade to black
+		return;
+	const std::string name = obs_source_get_name(dest);
+	obs_source_release(dest);
+	QMetaObject::invokeMethod(dock, [dock, name]() { dock->ProgramTransitionStarting(name); }, Qt::QueuedConnection);
+}
+
+void DownstreamKeyerDock::ProgramTransitionStarting(const std::string &scene)
+{
+	if (closing)
+		return;
+	transitionStartedScene = scene;
+	ForEachKeyer([&scene](DownstreamKeyer *w) { w->SceneChanged(scene); });
 }
 
 DownstreamKeyerDock::~DownstreamKeyerDock()
@@ -404,6 +451,8 @@ DownstreamKeyerDock::~DownstreamKeyerDock()
 	}
 	obs_frontend_remove_save_callback(frontend_save_load, this);
 	obs_frontend_remove_event_callback(frontend_event, this);
+	if (!view && !canvas)
+		signal_handler_disconnect(obs_get_signal_handler(), "source_transition_start", transition_start, this);
 	ClearKeyers();
 	auto c = obs_weak_canvas_get_canvas(canvas);
 	if (c) {
@@ -570,6 +619,12 @@ void DownstreamKeyerDock::SceneChanged()
 		scene = obs_frontend_get_current_scene();
 	}
 	std::string scene_name = scene ? obs_source_get_name(scene) : "";
+	if (!view && !canvas && !transitionStartedScene.empty() && scene_name == transitionStartedScene) {
+		// already handled when the transition to this scene started
+		transitionStartedScene.clear();
+		obs_source_release(scene);
+		return;
+	}
 	for (int i = 0; i < count; i++) {
 		auto w = dynamic_cast<DownstreamKeyer *>(tabs->widget(i));
 		if (w) {
@@ -671,6 +726,35 @@ void DownstreamKeyerDock::AddExcludeSceneMenu(QMenu *tm)
 	obs_frontend_source_list_free(&scenes);
 }
 
+void DownstreamKeyerDock::AddLoadSceneMenu(QMenu *tm)
+{
+	const auto w = dynamic_cast<DownstreamKeyer *>(tabs->currentWidget());
+	if (!w)
+		return;
+
+	auto setLoadScene = [this](std::string name, bool add) {
+		const auto w = dynamic_cast<DownstreamKeyer *>(tabs->currentWidget());
+		if (!w)
+			return;
+		if (add)
+			w->AddLoadScene(name.c_str());
+		else
+			w->RemoveLoadScene(name.c_str());
+	};
+
+	struct obs_frontend_source_list scenes = {};
+	obs_frontend_get_scenes(&scenes);
+	for (size_t i = 0; i < scenes.sources.num; i++) {
+		const std::string name = obs_source_get_name(scenes.sources.array[i]);
+		const bool checked = w->IsLoadScene(name.c_str());
+		auto a = tm->addAction(QT_UTF8(name.c_str()));
+		a->setCheckable(true);
+		a->setChecked(checked);
+		connect(a, &QAction::triggered, [setLoadScene, name, checked] { setLoadScene(name, !checked); });
+	}
+	obs_frontend_source_list_free(&scenes);
+}
+
 void DownstreamKeyerDock::ConfigClicked()
 {
 	QMenu popup;
@@ -688,6 +772,19 @@ void DownstreamKeyerDock::ConfigClicked()
 	AddTransitionMenu(tm, transitionType::hide);
 	tm = popup.addMenu(QT_UTF8(obs_module_text("ExcludeScene")));
 	AddExcludeSceneMenu(tm);
+	tm = popup.addMenu(QT_UTF8(obs_module_text("LoadOnScene")));
+	AddLoadSceneMenu(tm);
+
+	if (const auto keyer = dynamic_cast<DownstreamKeyer *>(tabs->currentWidget())) {
+		a = popup.addAction(QT_UTF8(obs_module_text("IncludeAudio")));
+		a->setCheckable(true);
+		const bool included = keyer->GetIncludeAudio();
+		a->setChecked(included);
+		connect(a, &QAction::triggered, [this, included] {
+			if (auto w = dynamic_cast<DownstreamKeyer *>(tabs->currentWidget()))
+				w->SetIncludeAudio(!included);
+		});
+	}
 
 	tm = popup.addMenu(QT_UTF8(obs_module_text("HideAfter")));
 	QSpinBox *duration = new QSpinBox(tm);
@@ -857,6 +954,22 @@ bool DownstreamKeyerDock::RemoveExcludeScene(QString dskName, const char *sceneN
 		auto w = dynamic_cast<DownstreamKeyer *>(tabs->widget(i));
 		if (w->objectName() == dskName) {
 			w->RemoveExcludeScene(sceneName);
+			return true;
+		}
+	}
+	return false;
+}
+
+bool DownstreamKeyerDock::SetLoadScene(QString dskName, const char *sceneName, bool add)
+{
+	const int count = tabs->count();
+	for (int i = 0; i < count; i++) {
+		auto w = dynamic_cast<DownstreamKeyer *>(tabs->widget(i));
+		if (w->objectName() == dskName) {
+			if (add)
+				w->AddLoadScene(sceneName);
+			else
+				w->RemoveLoadScene(sceneName);
 			return true;
 		}
 	}
@@ -1168,6 +1281,98 @@ void DownstreamKeyerDock::remove_exclude_scene(obs_data_t *request_data, obs_dat
 		return;
 	}
 	obs_data_set_bool(response_data, "success", dsk->RemoveExcludeScene(QString::fromUtf8(dsk_name), scene_name));
+}
+
+void DownstreamKeyerDock::add_load_scene(obs_data_t *request_data, obs_data_t *response_data, void *param)
+{
+	UNUSED_PARAMETER(param);
+	load_scene_request(request_data, response_data, true);
+}
+
+void DownstreamKeyerDock::remove_load_scene(obs_data_t *request_data, obs_data_t *response_data, void *param)
+{
+	UNUSED_PARAMETER(param);
+	load_scene_request(request_data, response_data, false);
+}
+
+void DownstreamKeyerDock::load_scene_request(obs_data_t *request_data, obs_data_t *response_data, bool add)
+{
+	const char *viewName = obs_data_get_string(request_data, "view_name");
+	if (_dsks.find(viewName) == _dsks.end()) {
+		obs_data_set_string(response_data, "error", "'view_name' not found");
+		obs_data_set_bool(response_data, "success", false);
+		return;
+	}
+	auto dsk = _dsks[viewName];
+	const char *dsk_name = obs_data_get_string(request_data, "dsk_name");
+	const char *scene_name = obs_data_get_string(request_data, "scene");
+	if (!scene_name || !strlen(scene_name)) {
+		obs_data_set_string(response_data, "error", "'scene' not set");
+		obs_data_set_bool(response_data, "success", false);
+		return;
+	}
+	if (!dsk_name || !strlen(dsk_name)) {
+		obs_data_set_string(response_data, "error", "'dsk_name' not set");
+		obs_data_set_bool(response_data, "success", false);
+		return;
+	}
+	obs_data_set_bool(response_data, "success", dsk->SetLoadScene(QString::fromUtf8(dsk_name), scene_name, add));
+}
+
+bool DownstreamKeyerDock::KeyerAction(QString dskName, QString sceneName, bool preview)
+{
+	const int count = tabs->count();
+	for (int i = 0; i < count; i++) {
+		auto w = dynamic_cast<DownstreamKeyer *>(tabs->widget(i));
+		if (!w || w->objectName() != dskName)
+			continue;
+		QMetaObject::invokeMethod(
+			w,
+			[w, sceneName, preview]() {
+				if (!w->ArmScene(sceneName))
+					return;
+				if (!preview)
+					w->GoLive();
+				else if (!w->IsPreviewing())
+					w->TogglePreview();
+			},
+			Qt::QueuedConnection);
+		return true;
+	}
+	return false;
+}
+
+void DownstreamKeyerDock::keyer_action_request(obs_data_t *request_data, obs_data_t *response_data, bool preview)
+{
+	const char *viewName = obs_data_get_string(request_data, "view_name");
+	if (_dsks.find(viewName) == _dsks.end()) {
+		obs_data_set_string(response_data, "error", "'view_name' not found");
+		obs_data_set_bool(response_data, "success", false);
+		return;
+	}
+	auto dsk = _dsks[viewName];
+	const char *dsk_name = obs_data_get_string(request_data, "dsk_name");
+	if (!dsk_name || !strlen(dsk_name)) {
+		obs_data_set_string(response_data, "error", "'dsk_name' not set");
+		obs_data_set_bool(response_data, "success", false);
+		return;
+	}
+	// optional: arm this scene first
+	const char *scene_name = obs_data_get_string(request_data, "scene");
+	obs_data_set_bool(response_data, "success",
+			  dsk->KeyerAction(QString::fromUtf8(dsk_name), QString::fromUtf8(scene_name ? scene_name : ""), preview));
+}
+
+void DownstreamKeyerDock::go_live(obs_data_t *request_data, obs_data_t *response_data, void *param)
+{
+	UNUSED_PARAMETER(param);
+	keyer_action_request(request_data, response_data, false);
+}
+
+void DownstreamKeyerDock::go_to_preview(obs_data_t *request_data, obs_data_t *response_data, void *param)
+{
+	UNUSED_PARAMETER(param);
+	keyer_action_request(request_data, response_data, true);
 }
 
 void DownstreamKeyerDock::remove_canvas(void *data, calldata_t *cd)
