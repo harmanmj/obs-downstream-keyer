@@ -1,6 +1,7 @@
 # Builds this fork as the Flatpak OBS Downstream Keyer extension.
 # Same as Flathub's manifest (github.com/flathub/com.obsproject.Studio.Plugin.DownstreamKeyer),
-# but built from harmanmj/obs-downstream-keyer's load-on-scene branch, without the metainfo file.
+# but built from harmanmj/obs-downstream-keyer's 0.4.6-beta2 tag, without the metainfo file.
+# The fork's GitHub Actions (flatpak.yaml) build the checked out commit instead of the source below.
 id: com.obsproject.Studio.Plugin.DownstreamKeyer
 branch: stable
 runtime: com.obsproject.Studio
@@ -19,4 +20,4 @@ modules:
     sources:
       - type: git
         url: https://github.com/harmanmj/obs-downstream-keyer.git
-        branch: load-on-scene
+        tag: 0.4.6-beta2
