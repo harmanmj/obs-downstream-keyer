@@ -1,5 +1,7 @@
 Adds a "set up, then take" workflow to each downstream keyer. Keyer scenes get check boxes. Checked scenes go on air with a new **Go Live** button, can be checked in the Studio Mode preview with **Go to Preview**, or can go live or off together with the program scene transition. Several scenes can be live on one keyer at once.
 
+**Preview a keyer on a scene in Studio Mode, then take both live together.** With **Go to Preview**, the keyer is shown on top of the Studio Mode preview scene, so the operator can see exactly how the lower third will look over that scene before it goes out. When the preview scene is transitioned to Program, the keyer goes live with it in the same transition. No second click is needed, and nothing is on air until the scene transition. This isn't possible today, because keyer output never appears in the Studio Mode preview.
+
 The goal is the same as Load On Scene: let a busy operator set up the next graphic without it going on air by accident, and then take it at the right moment, ideally together with the scene change.
 
 **This builds on #67 (Load On Scene).** The first seven commits are that PR's. Once #67 is merged, this PR only contains the Go Live commits.
