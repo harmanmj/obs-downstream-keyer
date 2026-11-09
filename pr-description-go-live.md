@@ -59,14 +59,18 @@ The goal is the same as Load On Scene: let a busy operator set up the next graph
   - The keyer **Hide on** hotkey is that keyer's Keyer Off.
 
 ## obs-websocket
-Two new vendor requests on the `downstream-keyer` vendor:
+New vendor requests on the `downstream-keyer` vendor. Each also takes an optional `view_name`.
 
 | Request | Fields |
 |---|---|
-| `dsk_go_live` | `dsk_name` (required), `scene` (optional: check only this scene first), `view_name` (optional) |
-| `dsk_go_to_preview` | `dsk_name` (required), `scene` (optional), `view_name` (optional) |
+| `dsk_go_live` | `dsk_name` (required), `scene` or `scenes` (optional: check exactly these scenes first) |
+| `dsk_go_to_preview` | `dsk_name` (required), `scene` or `scenes` (optional) |
+| `dsk_all_keyers_off` | none |
+| `dsk_set_hold_keyers` | `hold` (required, bool) |
+| `dsk_set_keyer_off_at_scene_change` | `enabled` (required, bool) |
+| `dsk_transition_keyers` | none (main output in Studio Mode) |
 
-The response has `success`, plus `error` when `view_name` is unknown or `dsk_name` is missing.
+`scenes` is an array of `{ "name": "..." }` objects. The response has `success`, plus `error` when `view_name` is unknown, a required field is missing, the keyer or a scene is not found, or Studio Mode is not active for `dsk_transition_keyers`.
 
 ## Changes
 - `downstream-keyer.cpp/.hpp`:
@@ -84,7 +88,7 @@ The response has `success`, plus `error` when `view_name` is unknown or `dsk_nam
   - preview and Studio Mode events
   - cleanup of keyer copies on program and on load
   - the **Include Audio** menu item and registering the video-only source
-  - the two websocket requests
+  - the websocket requests
 - `data/locale/en-US.ini`: new strings
 
 ## Testing
@@ -101,7 +105,7 @@ The response has `success`, plus `error` when `view_name` is unknown or `dsk_nam
 **Not yet tested:**
 - **macOS and Linux.** I haven't built or run it on these; I'm relying on this PR's CI builds.
 - **Not systematically tested on Windows yet:**
-  - the obs-websocket requests and hotkeys
+  - the obs-websocket requests (built and compiled, not yet called from a client) and hotkeys
   - keyers on extra views/canvases
   - **Swap Scenes**
   - stinger transitions (keyers change when the transition starts, not at the stinger's transition point)

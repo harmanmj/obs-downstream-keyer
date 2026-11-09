@@ -101,25 +101,46 @@ Hide After counts down from the moment scenes go live (a button, a scene transit
 
 ## obs-websocket
 
-Two vendor requests are added to the `downstream-keyer` vendor:
+These vendor requests are added to the `downstream-keyer` vendor. Every request takes an optional `view_name` (the view or canvas name; leave it out or empty for the main OBS output).
 
-| Request | Description |
-|---|---|
-| `dsk_go_live` | Same as **Go Live** / **Go to Program** |
-| `dsk_go_to_preview` | Same as **Go to Preview**, but it only starts a cue and never clears one |
-
-| Field | Required | Description |
+| Request | Fields | Description |
 |---|---|---|
-| `dsk_name` | yes | Name of the downstream keyer (tab name) |
-| `scene` | no | Check only this keyer scene first |
-| `view_name` | no | View/canvas name. Leave it out or empty for the main OBS output |
+| `dsk_go_live` | `dsk_name` (required), `scene` or `scenes` (optional) | Same as **Go Live** / **Go to Program** |
+| `dsk_go_to_preview` | `dsk_name` (required), `scene` or `scenes` (optional) | Same as **Go to Preview**, but it only starts a cue and never clears one |
+| `dsk_all_keyers_off` | none | Same as **All Keyers Off** |
+| `dsk_set_hold_keyers` | `hold` (required, bool) | Turns **Hold Keyers** on or off |
+| `dsk_set_keyer_off_at_scene_change` | `enabled` (required, bool) | Arms or disarms the one-shot **Keyer Off at Scene Change** |
+| `dsk_transition_keyers` | none | Same as **Transition Keyers**. Main output in Studio Mode only |
 
-The response has `success`, plus `error` when `view_name` is unknown or `dsk_name` is missing.
+- `scene` checks only that keyer scene first. `scenes` checks exactly the listed scenes, as an array of objects: `"scenes": [{ "name": "Lower Third - Pastor" }, { "name": "Bug" }]`. Without either, the scenes that are already checked are used.
+- The response has `success`, plus `error` when `view_name` is unknown, a required field is missing, the keyer or a scene is not found, or (for `dsk_transition_keyers`) Studio Mode is not active.
+- Requests return right away; the action runs on the OBS UI thread a moment later.
+
+Example (obs-websocket v5 `CallVendorRequest`):
+
+```json
+{
+  "op": 6,
+  "d": {
+    "requestType": "CallVendorRequest",
+    "requestId": "1",
+    "requestData": {
+      "vendorName": "downstream-keyer",
+      "requestType": "dsk_go_live",
+      "requestData": {
+        "dsk_name": "Lyrics",
+        "scenes": [{ "name": "Lower Third - Pastor" }, { "name": "Bug" }]
+      }
+    }
+  }
+}
+```
 
 Existing requests:
 
 - `dsk_select_scene` checks only that scene and puts it live right away. An empty `scene` turns the keyer off.
 - `dsk_get_scene` returns the first live scene.
+- `get_downstream_keyers` / `get_downstream_keyer` include the live and checked scenes, and the dock's `downstream_keyers_hold` and `downstream_keyers_off_at_scene_change`.
 - `dsk_set_tie` returns `success: false` with "tie is no longer supported".
 - The `dsk_scene_changed` event's `new_scene` lists the live scenes, separated by commas.
 
