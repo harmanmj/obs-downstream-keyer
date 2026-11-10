@@ -84,7 +84,7 @@ OBS has no way for a plugin to draw over the Studio Mode preview, so each keyer'
 
 ## Keyer transitions
 
-A keyer without a Transition of its own follows the OBS scene transition selected in the Scene Transitions dock, with its duration. Changing that dock changes these keyers on their next change. In the gear menu this shows as **Same as Scene Transition**, and Show / Hide Transition show **Same as Transition**.
+A keyer without a Transition of its own follows the OBS scene transition selected in the Scene Transitions dock, with its duration. Changing that dock changes these keyers on their next change. In the gear menu this shows as **Same as Scene Transition**, and Show / Hide Transition show **Same as Keyer Transition**, which follows this keyer's Transition setting.
 
 A keyer uses, in order: Show / Hide Transition when it turns on or off, a Transition Table override between the two keyer scenes, its own Transition, then the OBS scene transition.
 
