@@ -7,21 +7,22 @@ The goal is the same as Load On Scene: let a busy operator set up the next graph
 **This builds on #67 (Load On Scene).** The first seven commits are that PR's. Once #67 is merged, this PR only contains the Go Live commits.
 
 ## Usage
-- **All Keyers row** (above the tabs, acts on every keyer):
+- **All Keyer Actions** (above the tabs, act on every keyer; a 2x2 grid, with All Keyers Off taking the top row outside Studio Mode):
   - **All Keyers Off**
   - **Keyer Off at Scene Change**: one-shot, clears every keyer except the Load On Scene keyers of the new scene on the next transition
   - **Hold Keyers**: keyers stay as they are on transitions and Hide After stops
   - **Transition Keyers** (Studio Mode): the program keyers become what the preview shows, without a scene transition
-- **Keyer Action column** (each tab, acts on that keyer only):
+- **Keyer Specific Actions** column (each tab, acts on that keyer only, as wide as its longest button):
   - **Go Live** (Studio Mode off)
   - **Go to Preview** and **Go to Program** (Studio Mode on)
   - **Keyer Off**
+- **Keyer tabs** sit three to a row and wrap, so the dock can stay narrow with many keyers. Drag a tab onto another to reorder.
 - **Check boxes** on the right of each scene name choose what is taken.
-- **Include Audio** in the gear menu.
+- **Include Audio** in the gear menu, which is now at the right of each keyer's bottom toolbar.
 
 ## Behaviour
 - **Tally.**
-  - Keyer tabs are filled red while on program and green while shown on the Studio Mode preview. The selected tab is gray otherwise and has a white underline.
+  - Keyer tabs are filled red while on program and green while shown on the Studio Mode preview, with a white outline when selected.
   - In the list, live scenes are red bold and cued scenes green bold.
 - **Several scenes at once.** Checked scenes go live together, layered in list order with the top of the list on top. More than one scene is put on the output as a private scene holding them as layers, so the keyer's transition blends the group as one picture.
 - **The Studio Mode preview shows the next look of every keyer:** cued keyers, Load On Scene keyers of the previewed scene, held keyers, and keyers that stay. A plugin can't draw over the Studio Mode preview, so each keyer's next look is a temporary, locked scene item at the top of the preview scene, using a private source and tagged in its private settings.
@@ -74,7 +75,7 @@ New vendor requests on the `downstream-keyer` vendor. Each also takes an optiona
 
 ## Changes
 - `downstream-keyer.cpp/.hpp`:
-  - the Keyer Action column and the right-hand check box delegate
+  - the Keyer Specific Actions column, the right-hand check box delegate and the gear in the bottom toolbar
   - live and cue state, and building the layered source
   - the preview next look and cue take
   - the scene change rules
@@ -82,8 +83,8 @@ New vendor requests on the `downstream-keyer` vendor. Each also takes an optiona
   - the video-only wrapper source
   - save/load and the new hotkeys
 - `downstream-keyer-dock.cpp/.hpp`:
-  - the All Keyers row and its saved settings
-  - the tab tally
+  - the All Keyer Actions grid and its saved settings
+  - the keyer tabs as a grid of buttons, three to a row, with drag to reorder and the tab tally
   - the transition start hooks
   - preview and Studio Mode events
   - cleanup of keyer copies on program and on load
