@@ -1,29 +1,31 @@
-# Go Live, Go to Preview and All Keyer Actions controls
+# Go Live, Go to Preview and Global Keyer Actions controls
 
 These changes turn the downstream keyers into a "set up, then take" control that works with OBS Studio Mode. Selecting keyer scenes no longer puts them on air. You check the scenes you want, then take them live with a button, cue them on the Studio Mode preview, or let a program scene transition take them, the way a hardware switcher's downstream keyers work.
 
 ## The dock
 
 ```
-All Keyer Actions
+Global Keyer Actions
 [      All Keyers Off       ] [    Transition Keyers     ]   Studio Mode
 [ Keyer Off at Scene Change ] [       Hold Keyers        ]
-[    Lyrics    ] [   Speakers   ] [   Bumpers    ]
-[   Scripture  ]
-┌──────────────────────────────┐ ┌─────────────────┐
-│ Lower Third - Pastor     [✓] │ │ Keyer Specific  │
-│ Lower Third - Worship    [ ] │ │     Actions     │
-│                              │ │ [Go to Preview] │  Studio Mode
-│                              │ │ [Go to Program] │  Studio Mode
-│                              │ │ [  Keyer Off  ] │
-└──────────────────────────────┘ └─────────────────┘
-[+] [−]  [↑] [↓]                                [⚙]
+Keyers
+[      Lyrics     ] [    Speakers    ] [     Bumpers     ]
+[    Scripture    ]
+┌────────────────────────────────────┐ ┌─────────────────┐
+│ Lower Third - Pastor           [✓] │ │  Keyer Actions  │
+│ Lower Third - Worship          [ ] │ │                 │
+│                                    │ │ [Go to Preview] │  Studio Mode
+│                                    │ │ [Go to Program] │  Studio Mode
+│                                    │ │ [  Keyer Off  ] │
+└────────────────────────────────────┘ └─────────────────┘
+[+] [−]  [↑] [↓]                                       [⚙]
 ```
 
-- **All Keyer Actions** (above the tabs) act on every keyer in the dock. Outside Studio Mode, Transition Keyers is hidden and All Keyers Off takes the whole top row.
-- **Keyer Specific Actions** (in each tab) act on that tab's keyer only. The column is as wide as its longest button; the scene list takes any extra width.
-- **Keyer tabs** sit three to a row and wrap onto more rows. A tab is never narrower than its name, so the dock is never narrower than the tab names. Drag a tab onto another to move it there (this changes the keyer's output channel, as moving a tab did before).
+- **Global Keyer Actions** (above the tabs) act on every keyer in the dock. Outside Studio Mode, Transition Keyers is hidden and All Keyers Off takes the whole top row.
+- **Keyer Actions** (in each tab) act on that tab's keyer only. The column is as wide as its longest button; the scene list takes any extra width.
+- **Keyer tabs** sit under the **Keyers** header, three to a row, and wrap onto more rows. With fewer than three keyers, blank tabs fill the row. A tab is never narrower than its name, so the dock is never narrower than the tab names. Drag a tab onto another to move it there (this changes the keyer's output channel, as moving a tab did before).
 - **The gear** (keyer settings menu) is at the right of each keyer's bottom toolbar.
+- **Keyer names are unique.** Add and Rename refuse a name another keyer in the dock already has (ignoring case) and ask again. A new keyer's suggested name is numbered past the existing ones: DSK 1, DSK 2, and so on.
 - **Check boxes** (right of each scene name) choose the keyer scenes to take. Clicking a scene name only highlights it for the move and remove buttons.
 - **Tab tally:** a tab is filled **red** while its keyer is on program and **green** while it shows on the Studio Mode preview, with a white outline when it is the selected tab. Otherwise the selected tab has the theme's checked button look.
 - **Scene tally:** in the list, live scenes are red bold and cued scenes green bold.
@@ -34,7 +36,7 @@ Any number of scenes can be checked. They go live together, layered in list orde
 
 One scene goes on the keyer output as itself. Several go on the output as a private scene that holds them as layers, so a keyer transition blends the whole group at once. This costs about the same as showing those scenes anyway.
 
-## Keyer Specific Actions (each tab)
+## Keyer Actions (each tab)
 
 | Button | Shown | What it does |
 |---|---|---|
@@ -45,7 +47,7 @@ One scene goes on the keyer output as itself. Several go on the output as a priv
 
 Go to Preview and Go to Program are greyed out while nothing is checked.
 
-## All Keyer Actions (above the tabs)
+## Global Keyer Actions (above the tabs)
 
 | Button | What it does |
 |---|---|
@@ -74,7 +76,7 @@ The preview scene shows what every keyer will show after a transition to it, by 
 
 OBS has no way for a plugin to draw over the Studio Mode preview, so each keyer's next look is added to the preview scene as a temporary, locked source at the top of its source list, stacked in keyer tab order.
 
-- **It updates** as you check scenes, cue keyers, take keyers live or off, change the All Keyer Actions buttons, or pick another preview scene.
+- **It updates** as you check scenes, cue keyers, take keyers live or off, change the Global Keyer Actions buttons, or pick another preview scene.
 - **On a transition,** cued keyers ride in with the scene and move to their keyer output, with the same picture, when the transition ends. The other copies are removed when the transition starts, because those keyers are shown by their own output.
 - **Duplicate Scene and Swap Scenes** are supported. With Duplicate Scene, OBS puts a private copy of the preview scene on program, and keyer copies are removed from that copy too.
 - **Never added to the scene that is on program,** because that would put it on air.
@@ -174,4 +176,4 @@ Each dock saves `downstream_keyers_hold` and `downstream_keyers_off_at_scene_cha
 - **Layered scenes on extra canvases** are sized to the main canvas. On a canvas with a different resolution, the layers may be positioned wrong.
 - **Go to Preview, Go to Program and Transition Keyers** are only available for the main output, because Studio Mode only exists there.
 - **Stinger transitions:** keyers change when the transition starts, not at the stinger's transition point. Untested.
-- **The dock cannot be narrower than its widest row:** two All Keyer Actions buttons side by side, three keyer tab names, or a tab's scene list plus its Keyer Specific Actions column.
+- **The dock cannot be narrower than its widest row:** two Global Keyer Actions buttons side by side, three keyer tab names, or a tab's scene list plus its Keyer Actions column.
